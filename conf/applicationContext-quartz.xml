@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+	<!-- 导入 spring-context-support-4.0.0.RELEASE.jar -->
+	
+	<!-- 1. 配置 Job: 配置 job bean, 而不需要实现任何借口 -->
+	
+	<!-- 2. 配置 JobDetail: 指定调用哪个 bean 的那个方法.  -->
+	<bean id="jobDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject" ref="customerDrainService"></property>
+		<property name="targetMethod" value="callDrainProcedure"></property>
+	</bean>
+	
+	<!-- 3. 配置 Trigger -->
+	<bean id="trigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<!-- 指定关联的 JobDetail -->
+		<property name="jobDetail" ref="jobDetail"></property>
+		<!-- 指定 Cron 表达式 -->
+		<property name="cronExpression" value="0 19 15 13 10 ?"></property>
+	</bean>
+
+	<!-- 4. 配置 Scheduler -->
+	<bean id="scheduler" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<!-- 可以加入多个 Trigger -->
+		<property name="triggers">
+			<array>
+				<ref bean="trigger"/>
+			</array>
+		</property>
+		
+		<!-- 指定 Quartz 的基本属性: 覆盖 org.quartz 包下的 quartz.properties 中的属性设置 -->
+		<property name="quartzProperties">
+			<props>
+				<prop key="org.quartz.threadPool.threadCount">20</prop>
+			</props>
+		</property>
+		
+		<!-- 指定 Scheduler 被创建后多长时间被触发. 单位是 秒! -->
+		<property name="startupDelay" value="3"></property>
+		
+	</bean>	
+
+</beans>

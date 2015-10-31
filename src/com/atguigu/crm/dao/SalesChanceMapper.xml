@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.atguigu.crm.dao.SalesChanceMapper">
+	
+	<sql id="chanceClumns">
+		contact, contact_tel, create_date, 
+		cust_name, description, designee_date, 
+		rate, source, status, title
+	</sql>
+	
+	<!--  
+		WHERE status != 1 AND designee_id = xxx
+	-->
+	<sql id="chanceQueryCondition">
+		<where>
+			<if test="custName != null">
+				cust_name LIKE #{custName}
+			</if>
+			<if test="title != null">
+				AND title LIKE #{title}
+			</if>
+			<if test="contact != null">
+				AND contact LIKE #{contact}
+			</if>
+		</where>	
+	</sql>
+	
+	<resultMap type="com.atuigu.crm.entity.SalesChance" id="salesChanceResultMap">
+		<id column="id" property="id"/>
+		<result column="contact" property="contact"/>
+		<result column="contact_tel" property="contactTel"/>
+		
+		<result column="create_date" property="createDate"/>
+		<result column="cust_name" property="custName"/>
+		<result column="description" property="description"/>
+		
+		<result column="designee_date" property="designeeDate"/>
+		<result column="rate" property="rate"/>
+		<result column="source" property="source"/>
+		
+		<result column="status" property="status"/>
+		<result column="title" property="title"/>
+		
+		<result column="createBy.name" property="createBy.name"/>
+		<result column="designee.name" property="designee.name"/>
+		
+		<collection property="salesPlans" javaType="com.atuigu.crm.entity.SalesPlan">
+			<id column="sp_id" property="id"/>
+			<result column="sp_date" property="date"/>
+			<result column="sp_result" property="result"/>
+			<result column="sp_todo" property="todo"/>
+			<result column="id" property="chance.id"/>			
+		</collection>
+	</resultMap>
+	
+	<select id="getById" resultMap="salesChanceResultMap">
+		SELECT 
+			s.id, <include refid="chanceClumns"/>, 
+			u.name as "createBy.name", d.name as "designee.name",
+			sp.id as "sp_id", sp.plan_date as "sp_date", sp.PLAN_RESULT as "sp_result", sp.todo as "sp_todo"
+		FROM sales_chances s
+		LEFT OUTER JOIN users u
+		ON s.CREATED_USER_ID = u.id
+		LEFT OUTER JOIN users d
+		ON s.DESIGNEE_ID = d.id
+		LEFT OUTER JOIN sales_plan sp
+		ON sp.CHANCE_ID = s.id
+		WHERE s.id = #{id}
+	</select>
+	
+	<select id="getContent" resultType="com.atuigu.crm.entity.SalesChance">
+		SELECT id, cust_name, title, contact, contact_tel, create_date
+		FROM (
+		     SELECT rownum rn, id, cust_name, title, contact, contact_tel, create_date
+		     FROM sales_chances
+		     <include refid="chanceQueryCondition"/>
+		)
+		<![CDATA[
+		WHERE rn >= #{fromIndex} AND rn < #{endIndex}
+		]]>
+	</select>
+	
+	<select id="getTotalElements" resultType="long">
+		SELECT count(id)
+		FROM sales_chances
+		<include refid="chanceQueryCondition"/>
+	</select>
+	
+	<!--  
+	若修改的字段值为 null, 则必须在值中使用 jdbcType 属性! 若不用则会报: 无效的列类型
+	designee_id = #{designee.id,jdbcType=INTEGER}
+	jdbcType 可以参考枚举类 JdbcType 的枚举值.
+	-->
+	<update id="update" parameterType="com.atuigu.crm.entity.SalesChance">
+		UPDATE sales_chances SET 
+			contact = #{contact}, contact_tel = #{contactTel}, create_date = #{createDate},
+			cust_name = #{custName}, description = #{description}, designee_date = #{designeeDate,jdbcType=DATE},
+			rate = #{rate}, source = #{source}, status = #{status}, title = #{title}, 
+			created_user_id = #{createBy.id}, designee_id = #{designee.id,jdbcType=INTEGER}
+		WHERE id = #{id}
+	</update>
+	
+	<select id="get" resultType="com.atuigu.crm.entity.SalesChance">
+		SELECT s.id, <include refid="chanceClumns"/>, 
+			created_user_id as "createBy.id", u.name as "createBy.name", designee_id as "designee.id"
+		FROM sales_chances s
+		LEFT OUTER JOIN users u
+		ON s.created_user_id = u.id
+		WHERE s.id = #{id}
+	</select>
+	
+	<insert id="save" parameterType="com.atuigu.crm.entity.SalesChance">
+		INSERT INTO sales_chances(
+			id, <include refid="chanceClumns"/>, created_user_id, designee_id
+		)VALUES(
+			crm_seq.nextval, #{contact}, #{contactTel}, #{createDate},
+			#{custName}, #{description}, null,
+			#{rate}, #{source}, 1, #{title}, #{createBy.id}, null
+		)
+	</insert>
+	
+	<!--  
+	<select id="getContent" resultType="com.atuigu.crm.entity.SalesChance">
+		SELECT id, cust_name, title, contact, contact_tel, create_date
+		FROM (
+		     SELECT rownum rn, id, cust_name, title, contact, contact_tel, create_date
+		     FROM sales_chances
+		)
+		<![CDATA[
+		WHERE rn >= #{fromIndex} AND rn < #{endIndex}
+		]]>
+	</select>
+	-->
+	
+</mapper>

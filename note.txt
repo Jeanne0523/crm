@@ -1,0 +1,77 @@
+客户由正常状态转变为流失预警状态, 什么时候转变 ?
+1. 什么样的客户需要转为流失预警状态 ?
+连续 6 个月和公司没有任何的业务往来: 最后一次下订单的时间和当前时间的时间间隔 > 6 个月. 
+把客户状态修改为 "流失预警" 状态.
+向 customer_drains 数据表中插入一条数据.
+
+2. 什么时间点转 ? 
+每天凌晨 0:1:0 执行一次代码
+
+3. 调用什么代码 ?
+调用写好的存储过程.
+
+CREATE OR REPLACE PROCEDURE drain_procedure2 IS
+
+  --定义一个游标
+  CURSOR drain_cursor IS
+  SELECT o.od, c.id
+  FROM customers C
+  JOIN(
+    SELECT MAX(order_date) od,customer_id id FROM
+    orders
+    GROUP BY customer_id
+    HAVING MONTHS_BETWEEN(SYSDATE, MAX(order_date)) > 1
+  ) o
+  ON c.id = o.id
+  WHERE c.state = '正常';
+
+BEGIN
+
+  --遍历游标
+  FOR drain_rec IN drain_cursor LOOP
+    --把客户表对应记录的 state 修改为 流失预警
+    UPDATE customers SET state = '流失预警' WHERE id = drain_rec.id;
+    --向 customer_drains 数据表中插入一条记录
+    INSERT INTO customer_drains(id, last_order_date, status, customer_id) 
+    VALUES
+    (crm_seq.nextval, drain_rec.od, '流失预警', drain_rec.id);
+  END LOOP;
+
+END;
+
+4. 如何去调用存储过程 ?
+{call <procedure-name>[(<arg1>,<arg2>, ...)]}
+
+
+jdbc: Java 操作数据表最基本的方式. 需要使用 Connection、Statement、ResultSet 等最原始的接口. 
+
+dbutils or spring jdbcTemplate: Jdbc 的工具类: 不再需要使用原生的 JDBC API. 但不能称之为框架: 可以通过列的别名来映射
+列和 JavaBean 的属性, 但却不能完成关联映射!  
+
+mybatis: 半自动的 ORM 框架: 可以映射关联关系(多对一、多对多、一对多)、提供了一\二级缓存. 但任何操作都需要提供原生的 SQL!
+
+hibernate or jpa: 全自动的 ORM 框架: 不再需要提供 SQL 语句. 可以通过修改对象的属性来修改数据表的记录!
+
+springdata: springdata 和 jpa 的关系类似于 dbutils 和 jdbc 的关系. 是 Spring 给 JPA 提供的一个小工具! 可以更加便捷的
+操作 JPA
+
+-------------------------------------------------------------
+
+2. 搭建 ssm 的开发环境. 
+1). 加入 Spring & SpringMVC
+①. jar 包
+②. 配置 web.xml 文件: 加入启动 IOC 容器的 Listener、加入 SpringMVC 的 DispatcherServlet、加入支持 RESTFUL 风格的 Filter
+③. 加入 Spring 和 SpringMVC 的配置文件
+
+2). 加入 myBatis
+①. jar 包.
+②. Spring 整合 myBatis
+
+1. 概述:
+1). ssm: Spring SpringMVC myBatis
+2). sssp: Spring SpringMVC SpringData JPA
+
+3). JFreeChart、POI、Apache Shiro、Quartz、StrutsMenu
+4). Oracle
+
+5). SVN
